@@ -1,406 +1,240 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+  type Active,
+} from '@dnd-kit/core';
+import { arrayMove } from '@dnd-kit/sortable';
 
-// Define the types based on data.json
-interface AgentProfile {
-  id: string
-  name: string
-  description: string
-}
-
-interface Skill {
-  id: string
-  name: string
-  category: string
-  description: string
-}
-
-interface Layer {
-  id: string
-  name: string
-  type: string
-  description: string
-}
-
-interface AgentData {
-  agentProfiles: AgentProfile[]
-  skills: Skill[]
-  layers: Layer[]
-}
-
-interface SavedAgent {
-  id: string
-  name: string
-  profileId: string
-  skillIds: string[]
-  layerIds: string[]
-  provider?: string
-}
-
-function SessionTimer() {
-  const [sessionTime, setSessionTime] = useState(0)
-  useEffect(() => {
-    const interval = setInterval(() => setSessionTime(prev => prev + 1), 1000)
-    return () => clearInterval(interval)
-  }, [])
-  return (
-    <span style={{ fontSize: '0.9rem', color: '#666' }}>
-      Session Active: {sessionTime}s
-    </span>
-  )
-}
+import type { AgentData, SavedAgent } from './types';
+import Header from './components/Header';
+import SkillsPanel from './components/SkillsPanel';
+import AgentCanvas from './components/AgentCanvas';
+import SavedAgentCard from './components/SavedAgentCard';
+import DragOverlayContent from './components/DragOverlayContent';
 
 function App() {
-  const [data, setData] = useState<AgentData | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [data, setData] = useState<AgentData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Selection states
-  const [selectedProfile, setSelectedProfile] = useState<string>('')
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([])
-  const [selectedLayers, setSelectedLayers] = useState<string[]>([])
+  const [selectedProfile, setSelectedProfile] = useState('');
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedLayers, setSelectedLayers] = useState<string[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState('');
+  const [agentName, setAgentName] = useState('');
+  const [savedAgents, setSavedAgents] = useState<SavedAgent[]>([]);
 
-  // Saving states
-  const [agentName, setAgentName] = useState('')
-  const [savedAgents, setSavedAgents] = useState<SavedAgent[]>([])
-  const [selectedProvider, setSelectedProvider] = useState<string>('')
+  const [activeDrag, setActiveDrag] = useState<Active | null>(null);
 
-  const handleDeleteAgent = (idToRemove: string) => {
-    const updatedAgents = savedAgents.filter(a => a.id !== idToRemove)
-    setSavedAgents(updatedAgents)
-    localStorage.setItem('savedAgents', JSON.stringify(updatedAgents))
-  }
-  useEffect(() => {
-    // Load saved agents from local storage on component mount
-    const saved = localStorage.getItem('savedAgents')
-    if (saved) {
-      try {
-        setSavedAgents(JSON.parse(saved))
-      } catch (e) {
-        console.error('Failed to parse saved agents', e)
-      }
-    }
-  }, [])
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+  );
 
-  useEffect(() => {
-    const analyticsInterval = setInterval(() => {
-      if (agentName !== '') {
-        console.log(`[Analytics Heartbeat] User is working on agent: "${agentName}"`)
-      } else {
-        console.log(`[Analytics Heartbeat] User is working on an unnamed agent draft...`)
-      }
-    }, 8000)
-    return () => clearInterval(analyticsInterval)
-  }, [agentName])
-
-  const fetchAPI = async () => {
-    setLoading(true)
-    setError(null)
+  // Bug Fix: wrapped in useCallback so useEffect dep is stable
+  const fetchAPI = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      // Simulate network delay and randomness (1 to 3 seconds)
-      const delay = Math.floor(Math.random() * 2000) + 1000
-      await new Promise((resolve) => setTimeout(resolve, delay))
-
-      const response = await fetch('/data.json')
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-      const jsonData: AgentData = await response.json()
-      setData(jsonData)
+      const response = await fetch('/data.json');
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const jsonData: AgentData = await response.json();
+      setData(jsonData);
     } catch (err: unknown) {
-      console.error('Error fetching data:', err)
-      setError((err as Error).message || 'Failed to fetch agent data')
+      setError((err as Error).message || 'Failed to fetch agent data');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  }, []);
 
-  // Fetch data on initial component mount
+  useEffect(() => { fetchAPI(); }, [fetchAPI]);
+
   useEffect(() => {
-    fetchAPI()
-  }, [])
+    try {
+      const saved = localStorage.getItem('savedAgents');
+      if (saved) setSavedAgents(JSON.parse(saved));
+    } catch { /* ignore corrupted storage */ }
+  }, []);
 
-  const handleLayerSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const layerId = e.target.value;
-    if (layerId && !selectedLayers.includes(layerId)) {
-      setSelectedLayers(prev => [...prev, layerId])
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDrag(event.active);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDrag(null);
+    if (!over) return;
+
+    const dragData = active.data.current as { type: 'skill' | 'layer'; name: string; meta: string; category: string } | undefined;
+    if (!dragData) return;
+
+    if (over.id === 'skills-drop' && dragData.type === 'skill') {
+      setSelectedSkills(prev => prev.includes(active.id as string) ? prev : [...prev, active.id as string]);
+      return;
     }
-    e.target.value = "";
-  }
-
-  const handleSkillSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const skillId = e.target.value;
-    if (skillId && !selectedSkills.includes(skillId)) {
-      setSelectedSkills([...selectedSkills, skillId]);
-    }
-    e.target.value = ""; // Reset dropdown
-  }
-
-  const handleSaveAgent = () => {
-    if (!agentName.trim()) {
-      alert('Please enter a name for your agent.')
-      return
+    if (over.id === 'layers-drop' && dragData.type === 'layer') {
+      setSelectedLayers(prev => prev.includes(active.id as string) ? prev : [...prev, active.id as string]);
+      return;
     }
 
+    if (selectedSkills.includes(active.id as string) && selectedSkills.includes(over.id as string)) {
+      setSelectedSkills(prev => {
+        const oldIndex = prev.indexOf(active.id as string);
+        const newIndex = prev.indexOf(over.id as string);
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+      return;
+    }
+
+    if (selectedLayers.includes(active.id as string) && selectedLayers.includes(over.id as string)) {
+      setSelectedLayers(prev => {
+        const oldIndex = prev.indexOf(active.id as string);
+        const newIndex = prev.indexOf(over.id as string);
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+    }
+  };
+
+  const handleSaveAgent = useCallback(() => {
+    if (!agentName.trim()) return;
     const newAgent: SavedAgent = {
       id: crypto.randomUUID(),
-      name: agentName,
+      name: agentName.trim(),
       profileId: selectedProfile,
       skillIds: selectedSkills,
       layerIds: selectedLayers,
       provider: selectedProvider,
-    }
+      createdAt: Date.now(),
+    };
+    setSavedAgents(prev => {
+      const updated = [...prev, newAgent];
+      localStorage.setItem('savedAgents', JSON.stringify(updated));
+      return updated;
+    });
+    setAgentName('');
+    setSelectedProfile('');
+    setSelectedSkills([]);
+    setSelectedLayers([]);
+    setSelectedProvider('');
+  }, [agentName, selectedProfile, selectedSkills, selectedLayers, selectedProvider]);
 
-    const updatedAgents = [...savedAgents, newAgent]
-    setSavedAgents(updatedAgents)
-    localStorage.setItem('savedAgents', JSON.stringify(updatedAgents))
-    setAgentName('')
-    alert(`Agent "${newAgent.name}" saved successfully!`)
-  }
+  const handleLoadAgent = useCallback((agent: SavedAgent) => {
+    setSelectedProfile(agent.profileId || '');
+    setSelectedSkills([...(agent.skillIds || [])]);
+    setSelectedLayers([...(agent.layerIds || [])]);
+    setAgentName(agent.name);
+    setSelectedProvider(agent.provider || '');
+  }, []);
 
-  const handleLoadAgent = (agent: SavedAgent) => {
-    setSelectedProfile(agent.profileId || '')
-    setSelectedSkills(agent.skillIds || [])
-    setSelectedLayers([...(agent.layerIds || [])])
-    setAgentName(agent.name)
-    setSelectedProvider(agent.provider || '')
-  }
+  const handleDeleteAgent = useCallback((id: string) => {
+    setSavedAgents(prev => {
+      const updated = prev.filter(a => a.id !== id);
+      localStorage.setItem('savedAgents', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const handleClearAll = useCallback(() => {
+    if (!window.confirm('Clear all saved agents?')) return;
+    setSavedAgents([]);
+    localStorage.removeItem('savedAgents');
+  }, []);
+
+  const activeDragData = activeDrag?.data.current as { name: string; meta: string; category: string } | undefined;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', padding: '1rem', fontFamily: 'sans-serif' }}>
-      <header style={{ marginBottom: '2rem' }}>
-        <h1>AI Agent Builder</h1>
-        <p>Design your custom AI personality and capability set.</p>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <button onClick={fetchAPI} disabled={loading}>
-            {loading ? 'Fetching Configuration...' : 'Reload Configuration Data'}
-          </button>
-          <SessionTimer />
-        </div>
-      </header>
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div className="min-h-screen bg-[#f8f8f6] flex flex-col">
+        <Header loading={loading} onReload={fetchAPI} />
 
-      <main style={{ display: 'flex', flexDirection: 'column', gap: '2rem', flex: 1 }}>
-        <div style={{ display: 'flex', gap: '2rem', flexDirection: 'row' }}>
-          {/* Left pane: Selections */}
-          <section style={{ flex: '1 1 50%', borderRight: '1px solid #ccc', paddingRight: '1rem' }}>
-            <h2>Configuration Options</h2>
-            {error && <div style={{ color: 'red', marginBottom: '1rem' }}>Error: {error}</div>}
+        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6">
+          <div className="mb-6">
+            <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
+              Build your AI Agent
+            </h1>
+            <p className="text-[14px] text-neutral-500 mt-1">
+              Choose a profile, drag skills and layers onto the canvas, then save.
+            </p>
+          </div>
 
-            {/* Show loading state explicitly */}
-            {loading && (
-              <div style={{ padding: '2rem', background: '#f0f8ff', border: '1px dashed #0066cc', marginBottom: '1rem' }}>
-                Fetching simulated API... (this takes 1-3 seconds to test loading states)
+          <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-5">
+            <div className="bg-white border border-neutral-200 rounded-2xl p-5 shadow-sm h-fit lg:sticky lg:top-20">
+              <SkillsPanel
+                data={data}
+                loading={loading}
+                error={error}
+                selectedProfile={selectedProfile}
+                selectedSkills={selectedSkills}
+                selectedLayers={selectedLayers}
+                onSelectProfile={id => setSelectedProfile(id)}
+              />
+            </div>
+
+            <div className="bg-white border border-neutral-200 rounded-2xl p-5 shadow-sm">
+              <AgentCanvas
+                data={data}
+                selectedProfile={selectedProfile}
+                selectedSkills={selectedSkills}
+                selectedLayers={selectedLayers}
+                selectedProvider={selectedProvider}
+                agentName={agentName}
+                onSetProvider={setSelectedProvider}
+                onSetAgentName={setAgentName}
+                onRemoveSkill={id => setSelectedSkills(prev => prev.filter(s => s !== id))}
+                onRemoveLayer={id => setSelectedLayers(prev => prev.filter(l => l !== id))}
+                onSave={handleSaveAgent}
+              />
+            </div>
+          </div>
+
+          {savedAgents.length > 0 && (
+            <section className="mt-8">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-[16px] font-semibold text-neutral-900">Saved Agents</h2>
+                  <p className="text-[12px] text-neutral-400 mt-0.5">
+                    {savedAgents.length} agent{savedAgents.length !== 1 ? 's' : ''} saved
+                  </p>
+                </div>
+                <button
+                  onClick={handleClearAll}
+                  className="text-[12px] font-medium text-neutral-500 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-all"
+                >
+                  Clear all
+                </button>
               </div>
-            )}
-
-            {!data && !loading && !error && <p>No data loaded.</p>}
-
-            {data && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                <div>
-                  <label htmlFor="profile-select" style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem' }}>Base Profile:</label>
-                  <select
-                    id="profile-select"
-                    value={selectedProfile}
-                    onChange={(e) => {
-                      setSelectedProfile(e.target.value)
-                    }}
-                    style={{ width: '100%', padding: '0.5rem' }}
-                  >
-                    <option value="">-- Select a Profile --</option>
-                    {data.agentProfiles.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="skill-select" style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem' }}>Add Skill:</label>
-                  <select
-                    id="skill-select"
-                    onChange={handleSkillSelect}
-                    defaultValue=""
-                    style={{ width: '100%', padding: '0.5rem' }}
-                  >
-                    <option value="" disabled>-- Select a Skill to Add --</option>
-                    {data.skills.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name} ({s.category})</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="layer-select" style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem' }}>Add Personality Layer:</label>
-                  <select
-                    id="layer-select"
-                    onChange={handleLayerSelect}
-                    defaultValue=""
-                    style={{ width: '100%', padding: '0.5rem' }}
-                  >
-                    <option value="" disabled>-- Select a Layer to Add --</option>
-                    {data.layers.map((l) => (
-                      <option key={l.id} value={l.id}>{l.name} ({l.type})</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="provider-select" style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem' }}>AI Provider:</label>
-                  <select
-                    id="provider-select"
-                    value={selectedProvider}
-                    onChange={(e) => setSelectedProvider(e.target.value)}
-                    style={{ width: '100%', padding: '0.5rem' }}
-                  >
-                    <option value="">-- Select an AI Provider --</option>
-                    {['Gemini', 'ChatGPT', 'Kimi', 'Claude', 'DeepSeek'].map((provider) => (
-                      <option key={provider} value={provider}>{provider}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
-          </section>
-
-          {/* Right pane: Selected configuration preview */}
-          <section style={{ flex: '1 1 50%', paddingLeft: '1rem' }}>
-            <h2>Current Agent Configuration</h2>
-
-            <div style={{ background: '#f5f5f5', padding: '1rem', borderRadius: '8px', minHeight: '300px' }}>
-              <h3 style={{ marginTop: 0 }}>Profile</h3>
-              {selectedProfile && data ? (
-                <p>
-                  <strong>{data.agentProfiles.find(p => p.id === selectedProfile)?.name}</strong>:
-                  {' '}{data.agentProfiles.find(p => p.id === selectedProfile)?.description}
-                </p>
-              ) : (
-                <p style={{ color: '#888' }}>No profile selected.</p>
-              )}
-
-              <h3>Selected Skills</h3>
-              {selectedSkills.length > 0 && data ? (
-                <ul style={{ paddingLeft: '1.5rem' }}>
-                  {selectedSkills.map(skillId => {
-                    const skill = data.skills.find(s => s.id === skillId);
-                    return (
-                      <li key={skillId} style={{ marginBottom: '0.5rem' }}>
-                        {skill?.name}
-                        <button
-                          onClick={() => setSelectedSkills(selectedSkills.filter(id => id !== skillId))}
-                          style={{ marginLeft: '1rem', fontSize: '0.8rem', cursor: 'pointer' }}
-                        >
-                          Remove
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              ) : (
-                <p style={{ color: '#888' }}>No skills added.</p>
-              )}
-
-              <h3>Selected Layers</h3>
-              {selectedLayers.length > 0 && data ? (
-                <ul style={{ paddingLeft: '1.5rem' }}>
-                  {selectedLayers.map(layerId => {
-                    const layer = data.layers.find(l => l.id === layerId);
-                    return (
-                      <li key={layerId} style={{ marginBottom: '0.5rem' }}>
-                        {layer?.name}
-                        <button
-                          onClick={() => setSelectedLayers(selectedLayers.filter(id => id !== layerId))}
-                          style={{ marginLeft: '1rem', fontSize: '0.8rem', cursor: 'pointer' }}
-                        >
-                          Remove
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              ) : (
-                <p style={{ color: '#888' }}>No layers added.</p>
-              )}
-
-              <h3>Selected Provider</h3>
-              {selectedProvider ? (
-                <p><strong>{selectedProvider}</strong></p>
-              ) : (
-                <p style={{ color: '#888' }}>No provider selected.</p>
-              )}
-
-              <div style={{ marginTop: '2rem', borderTop: '1px solid #ddd', paddingTop: '1rem' }}>
-                <h3 style={{ marginTop: 0 }}>Save This Agent</h3>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <input
-                    type="text"
-                    placeholder="Enter agent name..."
-                    value={agentName}
-                    onChange={e => setAgentName(e.target.value)}
-                    style={{ flex: 1, padding: '0.5rem' }}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {savedAgents.map(agent => (
+                  <SavedAgentCard
+                    key={agent.id}
+                    agent={agent}
+                    data={data}
+                    onLoad={handleLoadAgent}
+                    onDelete={handleDeleteAgent}
                   />
-                  <button onClick={handleSaveAgent} style={{ padding: '0.5rem 1rem' }}>
-                    Save Agent
-                  </button>
-                </div>
+                ))}
               </div>
-            </div>
-          </section>
-        </div>
+            </section>
+          )}
+        </main>
+      </div>
 
-        {/* Bottom Panel: Saved Agents */}
-        {savedAgents.length > 0 && (
-          <section style={{ padding: '1.5rem', background: '#e0f7fa', borderRadius: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 style={{ margin: 0 }}>Saved Agents</h2>
-              <button
-                onClick={() => {
-                  if (confirm('Are you sure you want to clear all saved agents?')) {
-                    setSavedAgents([])
-                    localStorage.removeItem('savedAgents')
-                  }
-                }}
-                style={{ padding: '0.5rem 1rem', background: '#d32f2f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-              >
-                Clear All
-              </button>
-            </div>
-            <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-              {savedAgents.map((agent) => (
-                <div key={agent.id} style={{ padding: '1rem', background: 'white', borderRadius: '8px', border: '1px solid #b2ebf2', minWidth: '220px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                  <h3 style={{ marginTop: 0, color: '#006064' }}>{agent.name}</h3>
-                  <p style={{ margin: '0.5rem 0', fontSize: '0.9rem' }}>
-                    <strong>Profile:</strong> {data?.agentProfiles.find(p => p.id === agent.profileId)?.name || 'None Selected'}
-                  </p>
-                  <p style={{ margin: '0.5rem 0', fontSize: '0.9rem' }}>
-                    <strong>Skills:</strong> {agent.skillIds?.length || 0} included
-                  </p>
-                  <p style={{ margin: '0.5rem 0', fontSize: '0.9rem' }}>
-                    <strong>Layers:</strong> {agent.layerIds?.length || 0} included
-                  </p>
-                  <p style={{ margin: '0.5rem 0', fontSize: '0.9rem' }}>
-                    <strong>Provider:</strong> {agent.provider || 'None'}
-                  </p>
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                    <button
-                      onClick={() => handleLoadAgent(agent)}
-                      style={{ flex: 1, padding: '0.5rem', background: '#00838f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                    >
-                      Load
-                    </button>
-                    <button
-                      onClick={() => handleDeleteAgent(agent.id)}
-                      style={{ padding: '0.5rem', background: '#d32f2f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
+      <DragOverlay dropAnimation={{ duration: 180, easing: 'ease' }}>
+        {activeDragData && (
+          <DragOverlayContent
+            name={activeDragData.name}
+            meta={activeDragData.meta}
+            category={activeDragData.category}
+          />
         )}
-      </main>
-    </div>
-  )
+      </DragOverlay>
+    </DndContext>
+  );
 }
 
-export default App
+export default App;
