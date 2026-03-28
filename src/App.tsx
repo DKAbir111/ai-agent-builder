@@ -69,16 +69,6 @@ function App() {
     setSavedAgents(updatedAgents)
     localStorage.setItem('savedAgents', JSON.stringify(updatedAgents))
   }
-
-  const [sessionTime, setSessionTime] = useState(0)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSessionTime(prev => prev + 1)
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [])
-
   useEffect(() => {
     // Load saved agents from local storage on component mount
     const saved = localStorage.getItem('savedAgents')
