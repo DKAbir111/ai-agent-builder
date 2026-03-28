@@ -2,6 +2,8 @@
 
 Welcome to the AI Agent Profile Builder! 
 
+🚀 **[Live Demo](https://ai-agent-builder-sandy.vercel.app/)**
+
 In this project, you will be taking over a partially built "AI Agent Builder" interface. The current state is functional in principle, but it's suffering from severe performance issues, logical bugs, and a lack of styling.
 
 Your goal is to transform this raw scaffold into a polished, performant, and visually appealing web application.
