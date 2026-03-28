@@ -28,6 +28,7 @@ interface AgentData {
 }
 
 interface SavedAgent {
+  id: string
   name: string
   profileId: string
   skillIds: string[]
@@ -63,8 +64,8 @@ function App() {
   const [savedAgents, setSavedAgents] = useState<SavedAgent[]>([])
   const [selectedProvider, setSelectedProvider] = useState<string>('')
 
-  const handleDeleteAgent = (indexToRemove: number) => {
-    const updatedAgents = savedAgents.filter((_, index) => index !== indexToRemove)
+  const handleDeleteAgent = (idToRemove: string) => {
+    const updatedAgents = savedAgents.filter(a => a.id !== idToRemove)
     setSavedAgents(updatedAgents)
     localStorage.setItem('savedAgents', JSON.stringify(updatedAgents))
   }
@@ -151,6 +152,7 @@ function App() {
     }
 
     const newAgent: SavedAgent = {
+      id: crypto.randomUUID(),
       name: agentName,
       profileId: selectedProfile,
       skillIds: selectedSkills,
@@ -373,7 +375,7 @@ function App() {
             </div>
             <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
               {savedAgents.map((agent, index) => (
-                <div key={index} style={{ padding: '1rem', background: 'white', borderRadius: '8px', border: '1px solid #b2ebf2', minWidth: '220px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                <div key={agent.id} style={{ padding: '1rem', background: 'white', borderRadius: '8px', border: '1px solid #b2ebf2', minWidth: '220px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                   <h3 style={{ marginTop: 0, color: '#006064' }}>{agent.name}</h3>
                   <p style={{ margin: '0.5rem 0', fontSize: '0.9rem' }}>
                     <strong>Profile:</strong> {data?.agentProfiles.find(p => p.id === agent.profileId)?.name || 'None Selected'}
@@ -395,7 +397,7 @@ function App() {
                       Load
                     </button>
                     <button
-                      onClick={() => handleDeleteAgent(index)}
+                      onClick={() => handleDeleteAgent(agent.id)}
                       style={{ padding: '0.5rem', background: '#d32f2f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                     >
                       Delete
