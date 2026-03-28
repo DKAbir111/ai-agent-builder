@@ -35,6 +35,19 @@ interface SavedAgent {
   provider?: string
 }
 
+function SessionTimer() {
+  const [sessionTime, setSessionTime] = useState(0)
+  useEffect(() => {
+    const interval = setInterval(() => setSessionTime(prev => prev + 1), 1000)
+    return () => clearInterval(interval)
+  }, [])
+  return (
+    <span style={{ fontSize: '0.9rem', color: '#666' }}>
+      Session Active: {sessionTime}s
+    </span>
+  )
+}
+
 function App() {
   const [data, setData] = useState<AgentData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -169,9 +182,7 @@ function App() {
           <button onClick={fetchAPI} disabled={loading}>
             {loading ? 'Fetching Configuration...' : 'Reload Configuration Data'}
           </button>
-          <span style={{ fontSize: '0.9rem', color: '#666' }}>
-            Session Active: {sessionTime}s
-          </span>
+          <SessionTimer />
         </div>
       </header>
 
