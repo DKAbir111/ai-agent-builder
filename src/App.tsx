@@ -106,9 +106,9 @@ function App() {
       }
       const jsonData: AgentData = await response.json()
       setData(jsonData)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching data:', err)
-      setError(err.message || 'Failed to fetch agent data')
+      setError((err as Error).message || 'Failed to fetch agent data')
     } finally {
       setLoading(false)
     }
@@ -364,7 +364,7 @@ function App() {
               </button>
             </div>
             <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-              {savedAgents.map((agent, index) => (
+              {savedAgents.map((agent) => (
                 <div key={agent.id} style={{ padding: '1rem', background: 'white', borderRadius: '8px', border: '1px solid #b2ebf2', minWidth: '220px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                   <h3 style={{ marginTop: 0, color: '#006064' }}>{agent.name}</h3>
                   <p style={{ margin: '0.5rem 0', fontSize: '0.9rem' }}>
