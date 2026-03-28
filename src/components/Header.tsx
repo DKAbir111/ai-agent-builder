@@ -24,28 +24,49 @@ const Header = memo(function Header({ loading, onReload }: HeaderProps) {
           </span>
         </div>
 
-        <button
-          onClick={onReload}
-          disabled={loading}
-          className="flex items-center gap-2 text-[13px] font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 px-3 py-1.5 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 16 16"
-            fill="none"
-            className={loading ? 'animate-spin' : ''}
+        <div className="flex items-center gap-2">
+          <a
+            href="https://tinyurl.com/darunkaras"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-[13px] font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 px-3 py-1.5 rounded-md transition-all"
           >
-            <path
-              d="M14 8A6 6 0 1 1 8 2a6 6 0 0 1 4.243 1.757L14 2v4h-4l1.586-1.586A4 4 0 1 0 12 8"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          {loading ? 'Loading...' : 'Reload'}
-        </button>
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 16 16"
+              fill="none"
+            >
+              <path
+                d="M13.5 2.5H10v1h2.5l-9 9-0.707-0.707 9-9v2.5h1v-3.5a0.5 0.5 0 0 0-0.5-0.5z"
+                fill="currentColor"
+              />
+            </svg>
+            View My CV
+          </a>
+          <button
+            onClick={onReload}
+            disabled={loading}
+            className="flex items-center gap-2 text-[13px] font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 px-3 py-1.5 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 16 16"
+              fill="none"
+              className={loading ? 'animate-spin' : ''}
+            >
+              <path
+                d="M14 8A6 6 0 1 1 8 2a6 6 0 0 1 4.243 1.757L14 2v4h-4l1.586-1.586A4 4 0 1 0 12 8"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            {loading ? 'Loading...' : 'Reload'}
+          </button>
+        </div>
       </div>
     </header>
   );

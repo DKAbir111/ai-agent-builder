@@ -1,36 +1,94 @@
 # AI Agent Profile Builder
 
-Welcome to the AI Agent Profile Builder! 
+A modern, interactive web application for building and managing AI agent profiles with an intuitive drag-and-drop interface.
 
-🚀 **[Live Demo](https://ai-agent-builder-sandy.vercel.app/)**
+## 🎯 Issues Fixed & Improvements
 
-In this project, you will be taking over a partially built "AI Agent Builder" interface. The current state is functional in principle, but it's suffering from severe performance issues, logical bugs, and a lack of styling.
+This project started with a partially built interface suffering from **performance issues**, **logical bugs**, and **styling problems**. Here's what was identified and fixed:
 
-Your goal is to transform this raw scaffold into a polished, performant, and visually appealing web application.
+### 🐛 Bugs Fixed
 
-## 🎯 Your Mission
+| Issue | Fix | Impact |
+|-------|-----|--------|
+| **Type Safety** | Replaced `err: any` with `err: unknown` in fetchAPI catch block | Better type checking and error handling |
+| **Dependency Bug** | Added missing `agentName` dependency to analytics useEffect | Fixed infinite loops and stale closures |
+| **State Mutation** | Replaced direct state mutation with immutable updates in `handleLayerSelect` | Prevented unexpected behavior and React warnings |
+| **Memory Leaks** | Used stable unique IDs instead of array indices for list keys | Proper component identity and state preservation |
 
-1. **Fork this Repository:** Start by making a public fork of this repository to your own GitHub account.
-2. **Fix the Bugs:** We have intentionally left several React anti-patterns and performance bottlenecks in the codebase. Identify them, fix them, and explain your fixes in your PR description.
-3. **Elevate the UI/UX:** The current UI is a skeleton using basic dropdowns. We want you to wow us with a much more intuitive and user-friendly experience—**preferably implementing a drag-and-drop interface** to construct the agent instead of the current select menus. Implement a responsive, modern, and beautiful design. Feel free to use appropriate CSS frameworks (Tailwind, CSS Modules, Styled Components) and component libraries (like dnd-kit or react-beautiful-dnd) if you prefer.
-   - **⭐️ Design Process:** The strongest engineers don't just write code; they think about the user. While not strictly required, candidates who share a Figma file (or similar) detailing their thought process and design iterations before building stand out significantly from the crowd. Feel free to include a link in your PR description!
-4. **Submit a Pull Request:** Once you are satisfied with your work, open a Pull Request against this original repository.
-   - If you have created a design for this challenge. Make sure to link it here. If not, leave it as is.
+### ⚡ Performance Optimizations
 
-   **DESIGN LINK** = <public_url_here>
-   - **IMPORTANT:** In the PR, make sure to put your CV in the `public` folder (as a PDF). You can also present your CV in the frontend in a creative way; but the pdf in the `public` folder is a must.
+| Performance Issue | Solution | Result |
+|------------------|----------|--------|
+| **Duplicate State** | Removed duplicate `sessionTime` state and interval from App component | Eliminated unnecessary re-renders and memory usage |
+| **App-wide Re-renders** | Isolated session timer into dedicated component | Prevented cascading re-renders across entire app |
+| **Redundant API Calls** | Removed redundant `fetchAPI()` calls triggered on user selections | Faster response times and reduced server load |
+| **Component Memoization** | Applied React.memo to prevent unnecessary re-renders | Smoother UI interactions |
 
-## 🤖 AI Tool Usage
-We are a very AI-positive company! The use of AI coding assistants, LLMs, or other supporting tools is highly encouraged and **will not harm your chances**. 
+### 🎨 Benefits You'll Notice Now
 
-If you used any AI tools to assist you with this project (e.g., ChatGPT, Claude, GitHub Copilot, Cursor, etc.), please create a brief section in your PR description listing them and how you utilized them.
+✅ **Faster Performance** - App responds instantly without lag or delays  
+✅ **Smooth Interactions** - No more unnecessary re-renders or flickering  
+✅ **Reliable State Management** - Fixed bugs mean stable, predictable behavior  
+✅ **Better Developer Experience** - Type-safe code with proper error handling  
+✅ **Professional UI** - Beautiful drag-and-drop interface with Tailwind styling  
 
-## 📝 Evaluation Criteria
+---
 
-We will be evaluating your submission based on:
-1. **React Fundamentals:** Did you identify and correctly fix the intentional performance and scoping bugs? Is your component state managed logically?
-2. **Code Quality:** Is your code clean, readable, and well-structured? Did you extract components appropriately?
-3. **Design & UX:** Does the final application look professional and feel good to use? Is it responsive?
-4. **Communication:** Does your PR description clearly explain the architectural decisions you made, the bugs you found, and how you fixed them?
+## ✨ Features
 
-Good luck! We can't wait to see what you build.
+- **Intuitive Drag-and-Drop**: Build agent profiles by dragging skills onto the canvas (powered by dnd-kit)
+- **Modern Design**: Responsive UI built with Tailwind CSS that looks professional on all devices
+- **Clean Architecture**: Well-structured React components following best practices
+- **Reliable Session Management**: Real-time timer tracking without performance issues
+- **Persistent Storage**: Save multiple agent configurations and load them instantly
+
+## 🚀 Live Demo
+
+[**Try the Live Demo**](https://ai-agent-builder-sandy.vercel.app/)
+
+## 🛠 Tech Stack
+
+- **React 18** - Latest hooks and concurrent features
+- **TypeScript** - Type-safe development for reliability
+- **Tailwind CSS** - Modern, utility-first styling
+- **dnd-kit** - Performant drag-and-drop library
+- **Vite** - Lightning-fast build tool
+
+## 📦 Installation
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd ai-agent-builder
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+```
+
+## 📂 Project Structure
+
+```
+src/
+├── components/
+│   ├── AgentCanvas.tsx      - Drag-and-drop canvas
+│   ├── DraggableItem.tsx    - Draggable item component
+│   ├── Header.tsx           - Navigation header with CV link
+│   ├── ProfileCard.tsx      - Agent profile display
+│   ├── SavedAgentCard.tsx   - Saved agents selector
+│   └── SkillsPanel.tsx      - Available skills
+├── App.tsx                  - Main application
+├── types.ts                 - Type definitions
+└── index.css                - Global styles
+```
+
+## 👤 About
+
+Built with focus on **code quality**, **performance**, and **user experience**. This project demonstrates practical React optimization techniques and modern web development practices.
+
+**[View My CV](https://tinyurl.com/darunkaras)** - See my professional background and experience
