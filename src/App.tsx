@@ -80,14 +80,13 @@ function App() {
   useEffect(() => {
     const analyticsInterval = setInterval(() => {
       if (agentName !== '') {
-        console.log(`[Analytics Heartbeat] User is working on agent named: "${agentName}"`)
+        console.log(`[Analytics Heartbeat] User is working on agent: "${agentName}"`)
       } else {
         console.log(`[Analytics Heartbeat] User is working on an unnamed agent draft...`)
       }
     }, 8000)
-
     return () => clearInterval(analyticsInterval)
-  }, [])
+  }, [agentName])
 
   const fetchAPI = async () => {
     setLoading(true)
