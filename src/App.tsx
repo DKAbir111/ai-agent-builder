@@ -130,6 +130,8 @@ function App() {
       setSelectedSkills([...selectedSkills, skillId]);
     }
     e.target.value = ""; // Reset dropdown
+
+    fetchAPI()
   }
 
   const handleSaveAgent = () => {
@@ -201,6 +203,7 @@ function App() {
                     value={selectedProfile}
                     onChange={(e) => {
                       setSelectedProfile(e.target.value)
+                      fetchAPI()
                     }}
                     style={{ width: '100%', padding: '0.5rem' }}
                   >
